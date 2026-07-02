@@ -74,10 +74,23 @@ USE_SQLITE = os.getenv("USE_SQLITE", "False").lower() == "true"
 #         }
 #     }
 
-DATABASES = {
-    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
-}
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "portfolio_db"),
+            "USER": os.getenv("DB_USER", "portfolio_user"),
+            "PASSWORD": os.getenv("DB_PASSWORD", "portfolio_pass"),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
