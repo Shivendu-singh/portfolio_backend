@@ -41,18 +41,79 @@ def _fallback_payload(achievement: Achievement, source: str = "static") -> dict[
     }
 
 
+# def fetch_codeforces_stats(achievement: Achievement) -> dict[str, Any]:
+#     handle = achievement.handle
+#     url = f"https://codeforces.com/api/user.info?handles={handle}"
+
+#     try:
+#         response = httpx.get(url, timeout=10.0)
+#         response.raise_for_status()
+#         data = response.json()
+#         if data.get("status") != "OK" or not data.get("result"):
+#             raise ValueError(data.get("comment", "Codeforces API error"))
+
+#         user = data["result"][0]
+#         payload = {
+#             "platform": "codeforces",
+#             "handle": user.get("handle", handle),
+#             "profile_url": achievement.profile_url,
+#             "current_rating": user.get("rating") or achievement.current_rating,
+#             "max_rating": user.get("maxRating") or achievement.max_rating,
+#             "rank_text": (user.get("rank") or achievement.rank_text or "").replace("_", " ").title(),
+#             "problems_solved": achievement.problems_solved,
+#             "extra_stats": {
+#                 "max_rank": (user.get("maxRank") or "").replace("_", " ").title(),
+#                 "contribution": user.get("contribution", 0),
+#                 "friend_of_count": user.get("friendOfCount", 0),
+#             },
+#             "source": "live",
+#             "avatar_url": f"https:{user['avatar']}" if user.get("avatar", "").startswith("//") else user.get("avatar", ""),
+#             "last_synced": timezone.now().isoformat(),
+#         }
+#         return _save_cache("codeforces", handle, payload)
+#     except Exception:
+#         cache = CachedPlatformStats.objects.filter(platform="codeforces").first()
+#         if cache:
+#             stale = dict(cache.payload)
+#             stale["source"] = "stale_cache"
+#             stale["last_synced"] = cache.fetched_at.isoformat()
+#             return stale
+#         return _fallback_payload(achievement)
+
 def fetch_codeforces_stats(achievement: Achievement) -> dict[str, Any]:
     handle = achievement.handle
-    url = f"https://codeforces.com/api/user.info?handles={handle}"
+    info_url = f"https://codeforces.com/api/user.info?handles={handle}"
+    status_url = f"https://codeforces.com/api/user.status?handle={handle}"
 
     try:
-        response = httpx.get(url, timeout=10.0)
+        response = httpx.get(info_url, timeout=10.0)
         response.raise_for_status()
         data = response.json()
         if data.get("status") != "OK" or not data.get("result"):
             raise ValueError(data.get("comment", "Codeforces API error"))
 
         user = data["result"][0]
+
+        solved_count = achievement.problems_solved 
+        try:
+            status_response = httpx.get(status_url, timeout=15.0)
+            if status_response.status_code == 200:
+                status_data = status_response.json()
+                if status_data.get("status") == "OK":
+                    submissions = status_data.get("result", [])
+                    
+                    solved_set = set()
+                    for sub in submissions:
+                        if sub.get("verdict") == "OK":
+                            prob = sub.get("problem", {})
+                            prob_id = f"{prob.get('contestId', '')}{prob.get('index', prob.get('name'))}"
+                            solved_set.add(prob_id)
+                    
+                    if solved_set:
+                        solved_count = len(solved_set)
+        except Exception:
+            pass 
+
         payload = {
             "platform": "codeforces",
             "handle": user.get("handle", handle),
@@ -60,7 +121,7 @@ def fetch_codeforces_stats(achievement: Achievement) -> dict[str, Any]:
             "current_rating": user.get("rating") or achievement.current_rating,
             "max_rating": user.get("maxRating") or achievement.max_rating,
             "rank_text": (user.get("rank") or achievement.rank_text or "").replace("_", " ").title(),
-            "problems_solved": achievement.problems_solved,
+            "problems_solved": solved_count,  # Now dynamically calculated!
             "extra_stats": {
                 "max_rank": (user.get("maxRank") or "").replace("_", " ").title(),
                 "contribution": user.get("contribution", 0),

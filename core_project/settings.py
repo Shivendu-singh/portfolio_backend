@@ -121,3 +121,11 @@ CP_CACHE_TTL_SECONDS = 3600
 CODEFORCES_HANDLE = os.getenv("CODEFORCES_HANDLE", "Shivendu-singh")
 CODECHEF_HANDLE = os.getenv("CODECHEF_HANDLE", "shivendu_singh")
 LEETCODE_HANDLE = os.getenv("LEETCODE_HANDLE", "Shivendu-singh")
+
+# Email Configuration
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")

@@ -1,5 +1,7 @@
 from ninja import NinjaAPI, Schema
 from typing import List, Optional
+from django.core.mail import send_mail
+from django.conf import settings
 
 from .models import (
     ContactMessage,
@@ -143,9 +145,23 @@ def list_achievements(request, refresh: bool = False):
 
 @api.post("/contact", response=ContactOutSchema)
 def submit_contact(request, payload: ContactInSchema):
+    # 1. Save to database as usual
     msg = ContactMessage.objects.create(
         name=payload.name.strip(),
         email=payload.email.strip(),
         message=payload.message.strip(),
     )
+    
+    # 2. Fire off the email to your inbox
+    subject = f"New Portfolio Message from {msg.name}"
+    body = f"Name: {msg.name}\nEmail: {msg.email}\n\nMessage:\n{msg.message}"
+    
+    send_mail(
+        subject=subject,
+        message=body,
+        from_email=settings.EMAIL_HOST_USER,
+        recipient_list=["shivendusingh98351@gmail.com"],  # Your destination inbox
+        fail_silently=True,  # Keeps the API from crashing if Google rejects the login
+    )
+
     return {"success": True, "id": msg.id}
